@@ -40,7 +40,7 @@ def main():
 
 def run_tests():
     """ run all docstring tests """
-    from dt import doctester
+    from doctester import doctester
     try:
         doctester(
             root=os.path.abspath(PROJECT_PATH),
