@@ -1,0 +1,56 @@
+#!/usr/bin/python
+
+import os
+import sys
+import argparse
+
+PROJECT_PATH = 'test_project'
+
+
+def main():
+    """ parse the command line options """
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--test',
+        help='Run internal tests',
+        action='store_true')
+    args = parser.parse_args()
+
+    if args.test:
+        run_tests()
+        parser.exit(0)
+
+    while True:
+        try:
+            import time
+            import random
+            messages = [
+                    "I'm doing something very important.",
+                    "Look at me go.",
+                    "Leave me alone.",
+                    "Go away.",
+                    "Come back."
+                    ]
+            print random.choice(messages)
+            time.sleep(random.randint(1,3))
+
+        except KeyboardInterrupt:
+            sys.stdout.write("\nShutting down\n")
+            return
+
+
+def run_tests():
+    """ run all docstring tests """
+    from dt import doctester
+    try:
+        doctester(
+            root=os.path.abspath(PROJECT_PATH),
+            logfile='doctest.log',
+            verbose=False
+            )
+    except KeyboardInterrupt:
+        sys.stdout.write('\n')
+        sys.exit(0)
+
+
+if __name__ == '__main__':
+    main()
