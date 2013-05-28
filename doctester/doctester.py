@@ -1,9 +1,13 @@
 #!/usr/bin/python
 
 import os
-import subprocess
 import sys
-import time
+import doctest
+
+
+class stats(object):
+    file_count = 0
+    failed_files = 0
 
 
 def parse_args():
@@ -45,81 +49,82 @@ def main(root='.', logfile='doctest.log', verbose=False):
             # run the test
             r = test_file(f, verbose=verbose)
 
-            # write the filename to the log file
-            outfile.write(60 * '=' + '\n\n')
-            outfile.write(r['filename'] + '\n')
-            outfile.write(60 * '-' + '\n\n')
+            stats.file_count += 1
 
             if r['passed']:
                 # print status to stdout
                 verbose and sys.stdout.write("{} passed".format(f))
                 sys.stdout.write('\n')
             else:
-                # add a banner to the log file highlighting the failed test
-                outfile.write(60 * '*' + '\n')
-                outfile.write("   FAILED   ".center(60, '*') + '\n')
-                outfile.write(60 * '*' + '\n\n')
+                stats.failed_files += 1
                 
                 # print status to stdout
                 verbose and sys.stdout.write("{}".format(path))
                 sys.stdout.write("  ** FAILED **\n")
 
-            # write the test's output to the log file
-            outfile.write(r['output'] + 4 * '\n')
-            outfile.flush()
+                # write the test's output to the log file
+                outfile.write(r['output'] + 4 * '\n')
+                outfile.flush()
 
 
 def find_python_files():
     for root, dirs, files in os.walk('.'):
         for f in files:
-            if '/_tests' in root:
-                continue
-
             if f.endswith('.py'):
                 yield os.path.join(root, f)
     raise StopIteration
 
 
+class StdOut(object):
+    """ simple helper to capture all 'print' output in a string """
+    def __init__(self):
+        self.data = []
+
+    def write(self, d):
+        self.data.append(d)
+
+    def flush(self):
+        pass
+
+    def get_data(self):
+        return ''.join(self.data)
+
+
 def test_file(filename, verbose=False):
-    command = 'python -m doctest -v "{}"'.format(filename)
+    dirname, f = os.path.split(filename)
 
-    retval = {'filename':filename}
+    # import the module to test
+    sys.path.insert(0, dirname)
+    m = __import__(f[:-3])
+    del sys.path[0]
 
-    proc = subprocess.Popen(command, shell=True,
-            stderr=subprocess.STDOUT,
-            stdout=subprocess.PIPE)
+    # test the module, using doctest.testmod()
+    try:
+        # temporarily change stdout
+        sys.stdout = StdOut()
 
-    stdout = []
-    while True:
-        # readline blocks waiting for input
-        new = proc.stdout.readline()
+        # test this module
+        failures, tests = doctest.testmod(m)
 
-        if verbose:
-            sys.stdout.write(new)
-            sys.stdout.flush()
+    finally:
+        # record the test output
+        output = sys.stdout.get_data()
 
-        stdout.append(new)
+        # restore stdout
+        sys.stdout = sys.__stdout__
 
-        # at the end of the process, poll() returns the returncode
-        if proc.poll() is not None:
-            break
-
-    stdout.append('\n')
-
-    # reconstruct the output, and save it
-    retval['output'] = ''.join(stdout)
-
-    proc.poll()
-    if proc.returncode == 0:
-        retval['passed'] = True
-    else:
-        retval['passed'] = False
-
-    return retval
-
+    return {
+            'passed': not failures,
+            'output': output,
+            'filename': filename
+            }
 
 if __name__ == '__main__':
     try:
         parse_args()
     except KeyboardInterrupt:
-        sys.exit(0)
+        sys.stdout.write('\n')
+    finally:
+        sys.stdout.write('\n{} files processed; {} failed\n'.format(
+            stats.file_count, stats.failed_files)
+            )
