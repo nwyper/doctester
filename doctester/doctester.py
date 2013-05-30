@@ -3,7 +3,7 @@
 import os
 import sys
 import doctest
-
+import traceback
 
 class stats(object):
     file_count = 0
@@ -57,7 +57,12 @@ def main(root='.', logfile='doctest.log', verbose=False):
                 sys.stdout.write('\n')
             else:
                 stats.failed_files += 1
-                
+
+                # write the filename to the log file
+                outfile.write(60 * '=' + '\n\n')
+                outfile.write(r['filename'] + '\n')
+                outfile.write(60 * '-' + '\n\n')
+                        
                 # print status to stdout
                 verbose and sys.stdout.write("{}".format(path))
                 sys.stdout.write("  ** FAILED **\n")
@@ -93,25 +98,48 @@ class StdOut(object):
 def test_file(filename, verbose=False):
     dirname, f = os.path.split(filename)
 
-    # import the module to test
-    sys.path.insert(0, dirname)
-    m = __import__(f[:-3])
-    del sys.path[0]
-
-    # test the module, using doctest.testmod()
     try:
         # temporarily change stdout
         sys.stdout = StdOut()
+        sys.stderr = sys.stdout
+
+        # import the module to test
+        sys.path.insert(0, dirname)
+
+        m = __import__(f[:-3])
 
         # test this module
-        failures, tests = doctest.testmod(m)
+        failures, _ = doctest.testmod(m)
+
+    except SystemExit as e:
+        sys.stdout.write('\nExited with return code {}.\n'.format(e))
+        if e != 0:
+            failures = 1
+        else:
+            failures = 0
+
+    except:
+        failures = 1
+
+        # format and print the exception
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        output = traceback.format_exception(exc_type, exc_value,
+                                              exc_traceback)
+
+        # discard the exception line that refers to doctester.py
+        output.pop(1)
+        sys.stdout.write(''.join(output))
 
     finally:
+        # restore the import path
+        del sys.path[0]
+
         # record the test output
         output = sys.stdout.get_data()
 
         # restore stdout
         sys.stdout = sys.__stdout__
+        sys.stderr = sys.__stderr__
 
     return {
             'passed': not failures,
