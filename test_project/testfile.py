@@ -10,6 +10,7 @@ class A(object):
     >>> a.boo()
     >>> a.val == 16
     True
+    >>> False
     """
     def __init__(self, val):
         self.val = val

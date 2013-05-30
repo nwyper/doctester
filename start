@@ -3,6 +3,7 @@
 import os
 import sys
 import argparse
+from doctester import doctester, stats
 
 PROJECT_PATH = 'test_project'
 
@@ -13,10 +14,14 @@ def main():
     parser.add_argument('--test',
         help='Run internal tests',
         action='store_true')
+    parser.add_argument('--coverage',
+        help='Include coverage testing',
+        action='store_true')
+
     args = parser.parse_args()
 
     if args.test:
-        run_tests()
+        run_tests(coverage=args.coverage)
         parser.exit(0)
 
     while True:
@@ -38,9 +43,29 @@ def main():
             return
 
 
-def run_tests():
+def run_tests(coverage=False):
     """ run all docstring tests """
-    from doctester import doctester
+
+    if coverage:
+        try:
+            import coverage
+        except ImportError:
+            sys.stderr.write("""
+Coverage module is not installed.  To install it, run:
+
+    pip install coverage
+
+On Linux or Mac OSX:
+
+    sudo pip install coverage
+
+Continuing without coverage testing.
+""")
+            coverage = false
+        else:
+            cov = coverage.coverage()
+            cov.start()
+
     try:
         doctester(
             root=os.path.abspath(PROJECT_PATH),
@@ -49,7 +74,25 @@ def run_tests():
             )
     except KeyboardInterrupt:
         sys.stdout.write('\n')
-        sys.exit(0)
+    finally:
+        if coverage:
+            cov.stop()
+            cov.save()
+
+            sys.stdout.write('\nGenerating code coverage report...')
+            sys.stdout.flush()
+            cov.html_report(directory='coverage_report')
+            sys.stdout.write('done.\n')
+    
+    sys.stdout.write('\n{} files processed; {} failed\n'.format(
+            stats.file_count, stats.failed_files)
+            )
+    
+    if coverage:
+        sys.stdout.write('See the code coverage report in ' \
+            'coverage_report/index.html\n')
+
+    sys.exit(0)
 
 
 if __name__ == '__main__':

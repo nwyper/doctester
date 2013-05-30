@@ -35,42 +35,45 @@ def main(root='.', logfile='doctest.log', verbose=False):
     start_path = os.getcwd()
 
     with open(logfile, 'w') as outfile:
-        os.chdir(root)
+        try:
+            olddir = os.getcwd()
+            os.chdir(root)
 
-        for f in find_python_files():
-            # print status message, using a path relative to the calling 
-            # directory
-            path = os.path.relpath(os.path.join(root, f), start_path)
-            sys.stdout.write("Testing {}".format(path))
+            for f in find_python_files():
+                # print status message, using a path relative to the calling 
+                # directory
+                path = os.path.relpath(os.path.join(root, f), start_path)
+                sys.stdout.write("Testing {}".format(path))
 
-            verbose and sys.stdout.write('\n')
-            sys.stdout.flush()
+                verbose and sys.stdout.write('\n')
+                sys.stdout.flush()
 
-            # run the test
-            r = test_file(f, verbose=verbose)
+                # run the test
+                r = test_file(f, verbose=verbose)
 
-            stats.file_count += 1
+                stats.file_count += 1
 
-            if r['passed']:
-                # print status to stdout
-                verbose and sys.stdout.write("{} passed".format(f))
-                sys.stdout.write('\n')
-            else:
-                stats.failed_files += 1
+                if r['passed']:
+                    # print status to stdout
+                    verbose and sys.stdout.write("{} passed".format(f))
+                    sys.stdout.write('\n')
+                else:
+                    stats.failed_files += 1
 
-                # write the filename to the log file
-                outfile.write(60 * '=' + '\n\n')
-                outfile.write(r['filename'] + '\n')
-                outfile.write(60 * '-' + '\n\n')
-                        
-                # print status to stdout
-                verbose and sys.stdout.write("{}".format(path))
-                sys.stdout.write("  ** FAILED **\n")
+                    # write the filename to the log file
+                    outfile.write(60 * '=' + '\n\n')
+                    outfile.write(r['filename'] + '\n')
+                    outfile.write(60 * '-' + '\n\n')
+                            
+                    # print status to stdout
+                    verbose and sys.stdout.write("{}".format(path))
+                    sys.stdout.write("  ** FAILED **\n")
 
-                # write the test's output to the log file
-                outfile.write(r['output'] + 4 * '\n')
-                outfile.flush()
-
+                    # write the test's output to the log file
+                    outfile.write(r['output'] + 4 * '\n')
+                    outfile.flush()
+        finally:
+            os.chdir(olddir)
 
 def find_python_files():
     for root, dirs, files in os.walk('.'):
